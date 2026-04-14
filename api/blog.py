@@ -22,55 +22,43 @@ def conectar_sheet():
     return client.open_by_key(SHEET_ID).sheet1
 
 
-def handler(request):
-    try:
+class handler(BaseHTTPRequestHandler):
+
+    def do_GET(self):
+        sheet = conectar_sheet()
+        dados = sheet.get_all_values()
+
+        mensagens = []
+        for linha in dados:
+            if len(linha) >= 2:
+                mensagens.append({
+                    "author": linha[0],
+                    "message": linha[1]
+                })
+
+        self.send_response(200)
+        self.send_header("Content-type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(mensagens[::-1]).encode())
+
+    def do_POST(self):
         sheet = conectar_sheet()
 
-        if request.method == "GET":
-            dados = sheet.get_all_values()
+        content_length = int(self.headers['Content-Length'])
+        body = json.loads(self.rfile.read(content_length))
 
-            mensagens = []
-            for linha in dados:
-                if len(linha) >= 2:
-                    mensagens.append({
-                        "author": linha[0],
-                        "message": linha[1]
-                    })
+        action = body.get("action")
+        message = body.get("message")
+        author = body.get("author")
 
-            return {
-                "statusCode": 200,
-                "body": json.dumps(mensagens[::-1]),
-                "headers": {"Content-Type": "application/json"}
-            }
+        if action != "put" or not message or not author:
+            self.send_response(400)
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Payload inválido"}).encode())
+            return
 
-        elif request.method == "POST":
-            body = json.loads(request.body)
+        sheet.append_row([author, message])
 
-            action = body.get("action")
-            message = body.get("message")
-            author = body.get("author")
-
-            if action != "put" or not message or not author:
-                return {
-                    "statusCode": 400,
-                    "body": json.dumps({"error": "Payload inválido"})
-                }
-
-            sheet.append_row([author, message])
-
-            return {
-                "statusCode": 200,
-                "body": json.dumps({"status": "ok"})
-            }
-
-        else:
-            return {
-                "statusCode": 405,
-                "body": json.dumps({"error": "Método não permitido"})
-            }
-
-    except Exception as e:
-        return {
-            "statusCode": 500,
-            "body": json.dumps({"error": str(e)})
-        }
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(json.dumps({"status": "ok"}).encode())
