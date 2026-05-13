@@ -4,7 +4,8 @@ app = Flask(__name__)
 
 app.secret_key = "minha_chave_secreta"
 
-
+usuario_cadastrado = ""
+senha_cadastrada = ""
 
 @app.route("/")
 def home():
@@ -27,7 +28,8 @@ def home():
         <h1>{saudacao}</h1>
         <h2>Você visitou esta página {visitas} vezes.</h2>
 
-        <a href="/login">Login</a>
+        <a href="/login">Login</a><br>
+        <a href="/cadastro">Cadastrar</a>
     """)
 
     resposta.set_cookie("visitas", str(visitas))
@@ -61,7 +63,7 @@ def login():
         usuario = request.form.get("usuario")
         senha = request.form.get("senha")
 
-        if usuario == USUARIO and senha == SENHA:
+        if usuario == USUARIO and senha == SENHA or usuario == usuario_cadastrado and senha == senha_cadastrada:
 
             session["usuario"] = usuario
 
@@ -70,7 +72,8 @@ def login():
         else:
             return """
                 <h1>Usuário ou senha inválidos!</h1>
-                <a href="/login">Tentar novamente</a>
+                <a href="/login">Tentar novamente</a><br>
+                <a href="/cadastro">Cadastrar</a>
             """
 
     return render_template_string("""
@@ -111,3 +114,32 @@ def logout():
     session.pop("usuario", None)
 
     return redirect(url_for("login"))
+
+@app.route("/cadastro", methods=["GET", "POST"])
+def cadastro():
+
+    global usuario_cadastrado
+    global senha_cadastrada
+
+    if request.method == "POST":
+
+        usuario_cadastrado = request.form.get("usuario")
+        senha_cadastrada = request.form.get("senha")
+
+        return redirect(url_for("login"))
+
+    return render_template_string("""
+        <h1>Cadastro</h1>
+
+        <form method="POST">
+
+            <label>Nome:</label><br>
+            <input type="text" name="usuario"><br><br>
+
+            <label>Senha:</label><br>
+            <input type="password" name="senha"><br><br>
+
+            <button type="submit">Cadastrar</button>
+
+        </form>
+    """)
